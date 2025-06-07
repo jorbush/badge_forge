@@ -13,3 +13,19 @@ Badge Forge is a service that updates user level and badges for [Jorbites](https
 ## Requirements
 
 - Docker or Rust.
+
+## Running the Service
+
+To run Badge Forge, you can use Docker or build it from source using Rust.
+
+### Using Rust
+
+```bash
+make run
+```
+
+### Using Docker
+
+```bash
+make docker
+```
