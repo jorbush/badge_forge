@@ -29,3 +29,27 @@ make run
 ```bash
 make docker
 ```
+
+## Testing
+
+To run tests, use the following command:
+
+```bash
+cargo test
+```
+
+## Formatting
+
+To format the code, use:
+
+```bash
+cargo fmt
+```
+
+## Linting
+
+To lint the code, use:
+
+```bash
+cargo clippy
+```
