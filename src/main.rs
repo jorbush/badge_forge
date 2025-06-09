@@ -1,9 +1,11 @@
-use axum::{Router, routing::get};
+mod api;
+
+use api::route::create_router;
 
 #[tokio::main]
 async fn main() {
-    let app = Router::new().route("/", get(|| async { "Hello, World!" }));
-
+    let app = create_router();
+    println!("Badge Forge API started successfully on port 4000 🎖️");
     axum::serve(
         tokio::net::TcpListener::bind("0.0.0.0:4000").await.unwrap(),
         app,
