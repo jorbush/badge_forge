@@ -281,10 +281,10 @@ mod tests {
 
         // Verify all remaining requests are from the second batch (user5-user9)
         for req in pending {
-            let user_id_num: String = req.user_id.chars().filter(|c| c.is_digit(10)).collect();
+            let user_id_num: String = req.user_id.chars().filter(|c| c.is_ascii_digit()).collect();
             let num: u32 = user_id_num.parse().unwrap_or(0);
             assert!(
-                num >= 5 && num < 10,
+                (5..10).contains(&num),
                 "Only requests from the second batch should remain"
             );
         }
