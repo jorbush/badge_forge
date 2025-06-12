@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod level_tests {
+mod tests {
     use badge_forge::utils::level::calculate_level;
 
     #[test]

@@ -14,7 +14,7 @@ mod badge_tests {
         let base = Utc.with_ymd_and_hms(2025, 1, 1, 12, 0, 0).unwrap();
         Recipe {
             _id: id,
-            user_id: user_id,
+            user_id,
             num_likes: likes,
             created_at: base + chrono::Duration::days(day_offset),
         }
@@ -28,7 +28,7 @@ mod badge_tests {
     ) -> Recipe {
         Recipe {
             _id: id,
-            user_id: user_id,
+            user_id,
             num_likes: likes,
             created_at: DateTime::from_str(date_str).unwrap_or(Utc::now()),
         }
