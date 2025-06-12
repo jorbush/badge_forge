@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod badge_tests {
+mod tests {
     use badge_forge::{
         model::recipe::Recipe,
         utils::badge::{assign_badges, is_month_streak, is_week_streak},
