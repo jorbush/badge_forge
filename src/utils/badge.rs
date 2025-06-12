@@ -6,12 +6,12 @@ pub fn assign_badges(user_badges: &mut Vec<String>, user_level: i32, recipes: Ve
     // check for level-based badges
     if user_level >= 100 && !user_badges.contains(&"level_100".to_string()) {
         user_badges.push("level_100".to_string());
-        if user_level >= 250 && !user_badges.contains(&"level_250".to_string()) {
-            user_badges.push("level_250".to_string());
-            if user_level >= 500 && !user_badges.contains(&"level_500".to_string()) {
-                user_badges.push("level_500".to_string());
-            }
-        }
+    }
+    if user_level >= 250 && !user_badges.contains(&"level_250".to_string()) {
+        user_badges.push("level_250".to_string());
+    }
+    if user_level >= 500 && !user_badges.contains(&"level_500".to_string()) {
+        user_badges.push("level_500".to_string());
     }
     // check for streak badges
     if !user_badges.contains(&"month_streak".to_string()) && is_month_streak(&recipes) {
