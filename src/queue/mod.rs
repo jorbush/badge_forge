@@ -49,17 +49,20 @@ impl BadgeUpdateQueue for InMemoryQueue {
             request.created_at = chrono::Utc::now();
         }
 
+        // First send to the channel
+        self.sender
+            .send(request.clone())
+            .await
+            .map_err(|e| format!("Failed to enqueue badge update request: {}", e))?;
+
+        // Only after successful send, add to pending_requests
         {
             let mut pending = self.pending_requests.lock().await;
-            pending.push(request.clone());
+            pending.push(request);
             info!("Queue size: {} requests pending", pending.len());
         }
 
-        // Send to the channel
-        self.sender
-            .send(request)
-            .await
-            .map_err(|e| format!("Failed to enqueue badge update request: {}", e))
+        Ok(())
     }
 
     async fn get_pending_requests(&self) -> Vec<LevelRequest> {
