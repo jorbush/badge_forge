@@ -50,12 +50,12 @@ impl BadgeForgeProcessor {
             Err(_) => return Err(format!("Invalid user ID format: {}", request.user_id)),
         };
         // Fetch user by ID
-        let user = user_collection
-            .find_one(mongodb::bson::doc! { "_id": user_id })
+        let mut user = user_collection
+            .find_one(mongodb::bson::doc! { "_id": &user_id })
             .await
             .map_err(|e| format!("Failed to fetch user: {}", e))?
             .ok_or_else(|| format!("User not found: {}", request.user_id))?;
-
+        user.ensure_badges();
         // Get user recipes from MongoDB
         let recipe_collection: Collection<Recipe> =
             self.db_client.database(&self.db_name).collection("Recipe");

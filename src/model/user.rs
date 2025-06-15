@@ -7,5 +7,14 @@ pub struct User {
     pub name: Option<String>,
     pub email: Option<String>,
     pub level: i32,
+    #[serde(default)]
     pub badges: Vec<String>,
+}
+
+impl User {
+    pub fn ensure_badges(&mut self) {
+        if self.badges.is_empty() {
+            self.badges = Vec::new();
+        }
+    }
 }
