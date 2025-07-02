@@ -244,7 +244,6 @@ Badge Forge is configured through environment variables:
 You can use a `.env` file for local development.
 
 ## Troubleshooting
-
 ### Common Issues
 
 **Error: User not found**
