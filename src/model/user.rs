@@ -6,6 +6,7 @@ pub struct User {
     pub _id: ObjectId,
     pub name: Option<String>,
     pub email: Option<String>,
+    #[serde(default)]
     pub level: i32,
     #[serde(default)]
     pub badges: Vec<String>,
@@ -15,12 +16,6 @@ impl User {
     pub fn ensure_badges(&mut self) {
         if self.badges.is_empty() {
             self.badges = Vec::new();
-        }
-    }
-    pub fn ensure_level(&mut self) {
-        println!("Ensuring level for user: {:?}", self);
-        if self.level < 0 {
-            self.level = 0;
         }
     }
 }
