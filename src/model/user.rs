@@ -17,4 +17,10 @@ impl User {
             self.badges = Vec::new();
         }
     }
+    pub fn ensure_level(&mut self) {
+        println!("Ensuring level for user: {:?}", self);
+        if self.level < 0 {
+            self.level = 0;
+        }
+    }
 }

@@ -55,6 +55,7 @@ impl BadgeForgeProcessor {
             .await
             .map_err(|e| format!("Failed to fetch user: {}", e))?
             .ok_or_else(|| format!("User not found: {}", request.user_id))?;
+        user.ensure_level();
         user.ensure_badges();
         // Get user recipes from MongoDB
         let recipe_collection: Collection<Recipe> =
