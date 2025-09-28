@@ -9,6 +9,7 @@ use std::env;
 pub async fn require_api_key(request: Request, next: Next) -> Response {
     let api_key = env::var("API_KEY").unwrap_or_else(|_| "default_key".to_string());
 
+    #[allow(clippy::collapsible_if)] // Because grouping lets it is unstable
     if let Some(auth_header) = request.headers().get("X-API-Key") {
         if let Ok(header_value) = auth_header.to_str() {
             // Check if the API key matches
