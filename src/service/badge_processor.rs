@@ -41,7 +41,6 @@ impl BadgeForgeProcessor {
     async fn process_request(&self, request: LevelRequest) -> Result<(), String> {
         info!("Processing badge update for user: {}", request.user_id);
 
-        // Get user data from MongoDB
         let user_collection: Collection<User> =
             self.db_client.database(&self.db_name).collection("User");
 
@@ -49,14 +48,14 @@ impl BadgeForgeProcessor {
             Ok(id) => id,
             Err(_) => return Err(format!("Invalid user ID format: {}", request.user_id)),
         };
-        // Fetch user by ID
+
         let mut user = user_collection
             .find_one(mongodb::bson::doc! { "_id": &user_id })
             .await
             .map_err(|e| format!("Failed to fetch user: {}", e))?
             .ok_or_else(|| format!("User not found: {}", request.user_id))?;
         user.ensure_badges();
-        // Get user recipes from MongoDB
+
         let recipe_collection: Collection<Recipe> =
             self.db_client.database(&self.db_name).collection("Recipe");
         let mut recipes = recipe_collection
@@ -73,27 +72,31 @@ impl BadgeForgeProcessor {
             user_recipes.push(recipe);
         }
 
-        // Calculate new user level
+        let num_recipes = user_recipes.len();
         let user_num_likes: u32 = user_recipes.iter().map(|r| r.num_likes as u32).sum();
 
-        let new_user_level = calculate_level(user_recipes.len() as u32, user_num_likes) as i32;
+        let new_user_level = calculate_level(num_recipes as u32, user_num_likes) as i32;
 
-        // Update badges
         let mut updated_badges = user.badges.clone();
         assign_badges(&mut updated_badges, new_user_level, user_recipes);
 
-        // Update user in MongoDB
+        let new_verified = if num_recipes >= 30 {
+            true
+        } else {
+            user.verified.unwrap_or(false)
+        };
+
         user_collection
             .update_one(
                 mongodb::bson::doc! { "_id": user_id },
-                mongodb::bson::doc! { "$set": { "badges": &updated_badges, "level": new_user_level as i32 } }, // Cast u32 back to i32
+                mongodb::bson::doc! { "$set": { "badges": &updated_badges, "level": new_user_level as i32, "verified": new_verified } },
             )
             .await
             .map_err(|e| format!("Failed to update user badges: {}", e))?;
 
         info!(
-            "Updated level and badges for user {}: level {}, badges {:?}",
-            request.user_id, new_user_level, updated_badges
+            "Updated level and badges for user {}: level {}, badges {:?}, verified {}",
+            request.user_id, new_user_level, updated_badges, new_verified
         );
 
         Ok(())

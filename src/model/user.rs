@@ -10,6 +10,8 @@ pub struct User {
     pub level: i32,
     #[serde(default)]
     pub badges: Vec<String>,
+    #[serde(default)]
+    pub verified: Option<bool>,
 }
 
 impl User {
