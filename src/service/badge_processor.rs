@@ -103,35 +103,42 @@ impl BadgeForgeProcessor {
         if !new_badges.is_empty()
             && let Some(ref email) = user.email
         {
-            let notifier_url = std::env::var("NOTIFIER_URL")
-                .unwrap_or_else(|_| "http://localhost:3001".to_string());
-            let notifier_api_key = std::env::var("NOTIFIER_API_KEY").unwrap_or_default();
+            let notifier_url = std::env::var("NOTIFIER_URL").unwrap_or_default();
+            if notifier_url.is_empty() {
+                info!("NOTIFIER_URL is not set or empty, skipping badge notifications");
+            } else {
+                let notifier_api_key = std::env::var("NOTIFIER_API_KEY").unwrap_or_default();
 
-            let client = reqwest::Client::new();
-            for badge in new_badges {
-                let payload = serde_json::json!({
-                    "type": "NEW_BADGE",
-                    "recipient": email,
-                    "metadata": {
-                        "badgeName": badge,
-                        "userId": &request.user_id
+                let client = reqwest::Client::builder()
+                    .timeout(std::time::Duration::from_secs(5))
+                    .build()
+                    .unwrap_or_else(|_| reqwest::Client::new());
+
+                for badge in new_badges {
+                    let payload = serde_json::json!({
+                        "type": "NEW_BADGE",
+                        "recipient": email,
+                        "metadata": {
+                            "badgeName": badge,
+                            "userId": &request.user_id
+                        }
+                    });
+
+                    let url = format!("{}/notifications", notifier_url);
+                    let result = client
+                        .post(&url)
+                        .header("X-API-Key", &notifier_api_key)
+                        .json(&payload)
+                        .send()
+                        .await;
+
+                    match result {
+                        Ok(_) => info!(
+                            "Successfully sent NEW_BADGE notification for {} to {}",
+                            badge, email
+                        ),
+                        Err(e) => error!("Failed to send NEW_BADGE notification: {}", e),
                     }
-                });
-
-                let url = format!("{}/notifications", notifier_url);
-                let result = client
-                    .post(&url)
-                    .header("X-API-Key", &notifier_api_key)
-                    .json(&payload)
-                    .send()
-                    .await;
-
-                match result {
-                    Ok(_) => info!(
-                        "Successfully sent NEW_BADGE notification for {} to {}",
-                        badge, email
-                    ),
-                    Err(e) => error!("Failed to send NEW_BADGE notification: {}", e),
                 }
             }
         }
