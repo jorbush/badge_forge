@@ -133,10 +133,21 @@ impl BadgeForgeProcessor {
                         .await;
 
                     match result {
-                        Ok(_) => info!(
-                            "Successfully sent NEW_BADGE notification for {} to {}",
-                            badge, email
-                        ),
+                        Ok(resp) => {
+                            if resp.status().is_success() {
+                                info!(
+                                    "Successfully sent NEW_BADGE notification for {} to {}",
+                                    badge, email
+                                );
+                            } else {
+                                let status = resp.status();
+                                let body = resp.text().await.unwrap_or_default();
+                                error!(
+                                    "Failed to send NEW_BADGE notification. Status: {}, Body: {}",
+                                    status, body
+                                );
+                            }
+                        }
                         Err(e) => error!("Failed to send NEW_BADGE notification: {}", e),
                     }
                 }
