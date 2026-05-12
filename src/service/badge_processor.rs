@@ -94,6 +94,44 @@ impl BadgeForgeProcessor {
             .await
             .map_err(|e| format!("Failed to update user badges: {}", e))?;
 
+        let old_badges: std::collections::HashSet<_> = user.badges.iter().collect();
+        let new_badges: Vec<_> = updated_badges
+            .iter()
+            .filter(|b| !old_badges.contains(b))
+            .collect();
+
+        if !new_badges.is_empty() {
+            if let Some(ref email) = user.email {
+                let notifier_url = std::env::var("NOTIFIER_URL")
+                    .unwrap_or_else(|_| "http://localhost:3001".to_string());
+                let notifier_api_key = std::env::var("NOTIFIER_API_KEY").unwrap_or_default();
+
+                let client = reqwest::Client::new();
+                for badge in new_badges {
+                    let payload = serde_json::json!({
+                        "type": "NEW_BADGE",
+                        "recipient": email,
+                        "metadata": {
+                            "badgeName": badge,
+                            "userId": &request.user_id
+                        }
+                    });
+
+                    let url = format!("{}/notifications", notifier_url);
+                    let result = client.post(&url)
+                        .header("X-API-Key", &notifier_api_key)
+                        .json(&payload)
+                        .send()
+                        .await;
+
+                    match result {
+                        Ok(_) => info!("Successfully sent NEW_BADGE notification for {} to {}", badge, email),
+                        Err(e) => error!("Failed to send NEW_BADGE notification: {}", e),
+                    }
+                }
+            }
+        }
+
         info!(
             "Updated level and badges for user {}: level {}, badges {:?}, verified {}",
             request.user_id, new_user_level, updated_badges, new_verified
