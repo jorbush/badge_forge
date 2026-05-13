@@ -80,16 +80,20 @@ impl BadgeForgeProcessor {
         let mut updated_badges = user.badges.clone();
         assign_badges(&mut updated_badges, new_user_level, user_recipes);
 
-        let new_verified = if num_recipes >= 30 {
+
+        let is_already_verified = user.verified.unwrap_or(false);
+        let verified = if num_recipes >= 30 {
             true
         } else {
-            user.verified.unwrap_or(false)
+            is_already_verified
         };
+
+        let newly_verified = verified && !is_already_verified;
 
         user_collection
             .update_one(
                 mongodb::bson::doc! { "_id": user_id },
-                mongodb::bson::doc! { "$set": { "badges": &updated_badges, "level": new_user_level as i32, "verified": new_verified } },
+                mongodb::bson::doc! { "$set": { "badges": &updated_badges, "level": new_user_level as i32, "verified": verified } },
             )
             .await
             .map_err(|e| format!("Failed to update user badges: {}", e))?;
@@ -154,9 +158,57 @@ impl BadgeForgeProcessor {
             }
         }
 
+        if newly_verified {
+            if let Some(ref email) = user.email {
+                let notifier_url = std::env::var("NOTIFIER_URL").unwrap_or_default();
+                if notifier_url.is_empty() {
+                    info!("NOTIFIER_URL is not set or empty, skipping VERIFIED notification");
+                } else {
+                    let notifier_api_key = std::env::var("NOTIFIER_API_KEY").unwrap_or_default();
+
+                    let client = reqwest::Client::builder()
+                        .timeout(std::time::Duration::from_secs(5))
+                        .build()
+                        .unwrap_or_else(|_| reqwest::Client::new());
+
+                    let payload = serde_json::json!({
+                        "type": "VERIFIED",
+                        "recipient": email,
+                        "metadata": {
+                            "userId": &request.user_id
+                        }
+                    });
+
+                    let url = format!("{}/notifications", notifier_url);
+                    let result = client
+                        .post(&url)
+                        .header("X-API-Key", &notifier_api_key)
+                        .json(&payload)
+                        .send()
+                        .await;
+
+                    match result {
+                        Ok(resp) => {
+                            if resp.status().is_success() {
+                                info!("Successfully sent VERIFIED notification to {}", email);
+                            } else {
+                                let status = resp.status();
+                                let body = resp.text().await.unwrap_or_default();
+                                error!(
+                                    "Failed to send VERIFIED notification. Status: {}, Body: {}",
+                                    status, body
+                                );
+                            }
+                        }
+                        Err(e) => error!("Failed to send VERIFIED notification: {}", e),
+                    }
+                }
+            }
+        }
+
         info!(
             "Updated level and badges for user {}: level {}, badges {:?}, verified {}",
-            request.user_id, new_user_level, updated_badges, new_verified
+            request.user_id, new_user_level, updated_badges, verified
         );
 
         Ok(())
