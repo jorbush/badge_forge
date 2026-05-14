@@ -8,17 +8,23 @@ use tracing::{error, info};
 use crate::{
     model::{level::LevelRequest, recipe::Recipe, user::User},
     queue::InMemoryQueue,
+    service::notifier::Notifier,
     utils::{badge::assign_badges, level::calculate_level},
 };
 
 pub struct BadgeForgeProcessor {
     db_client: Client,
     db_name: String,
+    notifier: Notifier,
 }
 
 impl BadgeForgeProcessor {
     pub fn new(db_client: Client, db_name: String) -> Self {
-        Self { db_client, db_name }
+        Self {
+            db_client,
+            db_name,
+            notifier: Notifier::from_env(),
+        }
     }
 
     pub async fn start(
@@ -80,7 +86,6 @@ impl BadgeForgeProcessor {
         let mut updated_badges = user.badges.clone();
         assign_badges(&mut updated_badges, new_user_level, user_recipes);
 
-
         let is_already_verified = user.verified.unwrap_or(false);
         let verified = if num_recipes >= 30 {
             true
@@ -107,103 +112,26 @@ impl BadgeForgeProcessor {
         if !new_badges.is_empty()
             && let Some(ref email) = user.email
         {
-            let notifier_url = std::env::var("NOTIFIER_URL").unwrap_or_default();
-            if notifier_url.is_empty() {
-                info!("NOTIFIER_URL is not set or empty, skipping badge notifications");
-            } else {
-                let notifier_api_key = std::env::var("NOTIFIER_API_KEY").unwrap_or_default();
+            for badge in new_badges {
+                let metadata = serde_json::json!({
+                    "badgeName": badge,
+                    "userId": &request.user_id
+                });
 
-                let client = reqwest::Client::builder()
-                    .timeout(std::time::Duration::from_secs(5))
-                    .build()
-                    .unwrap_or_else(|_| reqwest::Client::new());
-
-                for badge in new_badges {
-                    let payload = serde_json::json!({
-                        "type": "NEW_BADGE",
-                        "recipient": email,
-                        "metadata": {
-                            "badgeName": badge,
-                            "userId": &request.user_id
-                        }
-                    });
-
-                    let url = format!("{}/notifications", notifier_url);
-                    let result = client
-                        .post(&url)
-                        .header("X-API-Key", &notifier_api_key)
-                        .json(&payload)
-                        .send()
-                        .await;
-
-                    match result {
-                        Ok(resp) => {
-                            if resp.status().is_success() {
-                                info!(
-                                    "Successfully sent NEW_BADGE notification for {} to {}",
-                                    badge, email
-                                );
-                            } else {
-                                let status = resp.status();
-                                let body = resp.text().await.unwrap_or_default();
-                                error!(
-                                    "Failed to send NEW_BADGE notification. Status: {}, Body: {}",
-                                    status, body
-                                );
-                            }
-                        }
-                        Err(e) => error!("Failed to send NEW_BADGE notification: {}", e),
-                    }
-                }
+                self.notifier
+                    .send_notification("NEW_BADGE", email, metadata)
+                    .await;
             }
         }
 
-        if newly_verified {
-            if let Some(ref email) = user.email {
-                let notifier_url = std::env::var("NOTIFIER_URL").unwrap_or_default();
-                if notifier_url.is_empty() {
-                    info!("NOTIFIER_URL is not set or empty, skipping VERIFIED notification");
-                } else {
-                    let notifier_api_key = std::env::var("NOTIFIER_API_KEY").unwrap_or_default();
+        if newly_verified && let Some(ref email) = user.email {
+            let metadata = serde_json::json!({
+                "userId": &request.user_id
+            });
 
-                    let client = reqwest::Client::builder()
-                        .timeout(std::time::Duration::from_secs(5))
-                        .build()
-                        .unwrap_or_else(|_| reqwest::Client::new());
-
-                    let payload = serde_json::json!({
-                        "type": "VERIFIED",
-                        "recipient": email,
-                        "metadata": {
-                            "userId": &request.user_id
-                        }
-                    });
-
-                    let url = format!("{}/notifications", notifier_url);
-                    let result = client
-                        .post(&url)
-                        .header("X-API-Key", &notifier_api_key)
-                        .json(&payload)
-                        .send()
-                        .await;
-
-                    match result {
-                        Ok(resp) => {
-                            if resp.status().is_success() {
-                                info!("Successfully sent VERIFIED notification to {}", email);
-                            } else {
-                                let status = resp.status();
-                                let body = resp.text().await.unwrap_or_default();
-                                error!(
-                                    "Failed to send VERIFIED notification. Status: {}, Body: {}",
-                                    status, body
-                                );
-                            }
-                        }
-                        Err(e) => error!("Failed to send VERIFIED notification: {}", e),
-                    }
-                }
-            }
+            self.notifier
+                .send_notification("VERIFIED", email, metadata)
+                .await;
         }
 
         info!(
