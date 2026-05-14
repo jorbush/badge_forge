@@ -1,6 +1,7 @@
 use reqwest::Client;
 use tracing::{error, info};
 
+#[derive(Clone)]
 pub struct Notifier {
     client: Client,
     url: String,
@@ -10,7 +11,7 @@ pub struct Notifier {
 impl Notifier {
     pub fn new(url: String, api_key: String) -> Self {
         let client = Client::builder()
-            .timeout(std::time::Duration::from_secs(15))
+            .timeout(std::time::Duration::from_secs(5))
             .build()
             .unwrap_or_else(|_| {
                 error!("Failed to build reqwest client with timeout, using default client");

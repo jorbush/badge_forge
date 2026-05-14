@@ -118,9 +118,13 @@ impl BadgeForgeProcessor {
                     "userId": &request.user_id
                 });
 
-                self.notifier
-                    .send_notification("NEW_BADGE", email, metadata)
-                    .await;
+                let notifier = self.notifier.clone();
+                let email = email.clone();
+                tokio::spawn(async move {
+                    notifier
+                        .send_notification("NEW_BADGE", &email, metadata)
+                        .await;
+                });
             }
         }
 
@@ -129,9 +133,13 @@ impl BadgeForgeProcessor {
                 "userId": &request.user_id
             });
 
-            self.notifier
-                .send_notification("VERIFIED", email, metadata)
-                .await;
+            let notifier = self.notifier.clone();
+            let email = email.clone();
+            tokio::spawn(async move {
+                notifier
+                    .send_notification("VERIFIED", &email, metadata)
+                    .await;
+            });
         }
 
         info!(
