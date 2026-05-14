@@ -10,7 +10,7 @@ pub struct Notifier {
 impl Notifier {
     pub fn new(url: String, api_key: String) -> Self {
         let client = Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
+            .timeout(std::time::Duration::from_secs(15))
             .build()
             .unwrap_or_else(|_| {
                 error!("Failed to build reqwest client with timeout, using default client");
