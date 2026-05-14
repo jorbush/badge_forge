@@ -1,7 +1,6 @@
 use reqwest::Client;
 use tracing::{error, info};
 
-#[derive(Clone)]
 pub struct Notifier {
     client: Client,
     url: String,
