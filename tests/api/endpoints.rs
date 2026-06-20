@@ -118,7 +118,7 @@ mod endpoints_tests {
         let user_oid = ObjectId::new();
         let email = format!("test_winner_{}@example.com", user_oid.to_hex());
         let dummy_user = User {
-            _id: user_oid.clone(),
+            _id: user_oid,
             name: Some("Test User".to_string()),
             email: Some(email),
             level: 1,
@@ -128,7 +128,7 @@ mod endpoints_tests {
 
         {
             let mut users = db.users.lock().unwrap();
-            users.insert(user_oid.clone(), dummy_user);
+            users.insert(user_oid, dummy_user);
         }
 
         // Award weekly badge
