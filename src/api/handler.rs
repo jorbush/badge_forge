@@ -92,13 +92,7 @@ pub async fn award_top_recipe_handler(
         }
     };
 
-    let user_collection: mongodb::Collection<crate::model::user::User> =
-        state.db_client.database(&state.db_name).collection("User");
-
-    let mut user = match user_collection
-        .find_one(mongodb::bson::doc! { "_id": &user_id })
-        .await
-    {
+    let mut user = match state.db.find_user(&user_id).await {
         Ok(Some(u)) => u,
         Ok(None) => {
             return (
@@ -141,13 +135,7 @@ pub async fn award_top_recipe_handler(
     // Award badge
     user.badges.push(badge_name.to_string());
 
-    if let Err(e) = user_collection
-        .update_one(
-            mongodb::bson::doc! { "_id": &user_id },
-            mongodb::bson::doc! { "$set": { "badges": &user.badges } },
-        )
-        .await
-    {
+    if let Err(e) = state.db.update_user_badges(&user_id, &user.badges).await {
         tracing::error!(
             "Failed to update user badges in award_top_recipe_handler: {}",
             e

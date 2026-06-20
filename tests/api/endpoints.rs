@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod endpoints_tests {
-    use crate::utils::test_utils::setup_test_client;
+    use crate::utils::test_utils::{setup_test_client, setup_test_client_with_db};
     use axum::http::StatusCode;
     use badge_forge::model::user::User;
-    use mongodb::{Client, bson::doc, bson::oid::ObjectId, options::ClientOptions};
+    use mongodb::bson::oid::ObjectId;
     use serde_json::json;
 
     fn get_test_api_key() -> String {
@@ -112,22 +112,13 @@ mod endpoints_tests {
 
     #[tokio::test]
     async fn test_award_top_recipe_success() {
-        dotenv::dotenv().ok();
+        let (client, db) = setup_test_client_with_db().await;
 
-        // Connect to MongoDB to seed a user
-        let mongodb_uri = std::env::var("MONGODB_URI")
-            .unwrap_or_else(|_| "mongodb://localhost:27017".to_string());
-        let db_name = std::env::var("DB_NAME").unwrap_or_else(|_| "badgeforge".to_string());
-
-        let client_options = ClientOptions::parse(mongodb_uri).await.unwrap();
-        let db_client = Client::with_options(client_options).unwrap();
-        let user_collection = db_client.database(&db_name).collection::<User>("User");
-
-        // Insert a dummy user
+        // Insert a dummy user directly into MockDatabase
         let user_oid = ObjectId::new();
         let email = format!("test_winner_{}@example.com", user_oid.to_hex());
         let dummy_user = User {
-            _id: user_oid,
+            _id: user_oid.clone(),
             name: Some("Test User".to_string()),
             email: Some(email),
             level: 1,
@@ -135,9 +126,10 @@ mod endpoints_tests {
             verified: Some(false),
         };
 
-        user_collection.insert_one(dummy_user).await.unwrap();
-
-        let client = setup_test_client().await;
+        {
+            let mut users = db.users.lock().unwrap();
+            users.insert(user_oid.clone(), dummy_user);
+        }
 
         // Award weekly badge
         let response = client
@@ -155,16 +147,15 @@ mod endpoints_tests {
         assert_eq!(body["badge"], "recipe_of_the_week");
 
         // Verify badge added in DB
-        let user_in_db = user_collection
-            .find_one(doc! { "_id": user_oid })
-            .await
-            .unwrap()
-            .unwrap();
-        assert!(
-            user_in_db
-                .badges
-                .contains(&"recipe_of_the_week".to_string())
-        );
+        {
+            let users = db.users.lock().unwrap();
+            let user_in_db = users.get(&user_oid).unwrap();
+            assert!(
+                user_in_db
+                    .badges
+                    .contains(&"recipe_of_the_week".to_string())
+            );
+        }
 
         // Call again and verify it detects already_awarded
         let response_dup = client
@@ -179,11 +170,5 @@ mod endpoints_tests {
         assert_eq!(response_dup.status(), StatusCode::OK);
         let body_dup: serde_json::Value = serde_json::from_str(&response_dup.text().await).unwrap();
         assert_eq!(body_dup["status"], "already_awarded");
-
-        // Clean up
-        user_collection
-            .delete_one(doc! { "_id": user_oid })
-            .await
-            .unwrap();
     }
 }
