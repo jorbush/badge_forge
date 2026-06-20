@@ -55,3 +55,135 @@ pub async fn queue_status_handler(State(state): State<Arc<AppState>>) -> impl In
         "pending_requests": pending_requests
     }))
 }
+
+pub async fn award_top_recipe_handler(
+    State(state): State<Arc<AppState>>,
+    Json(request): Json<crate::model::top_recipe_request::TopRecipeRequest>,
+) -> impl IntoResponse {
+    tracing::info!("Award top recipe request: {:?}", request);
+
+    let badge_name = match request.category.as_str() {
+        "week" => "recipe_of_the_week",
+        "month" => "recipe_of_the_month",
+        "year" => "recipe_of_the_year",
+        _ => {
+            return (
+                axum::http::StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "status": "error",
+                    "message": format!("Invalid category: {}", request.category)
+                })),
+            )
+                .into_response();
+        }
+    };
+
+    let user_id = match mongodb::bson::oid::ObjectId::parse_str(&request.user_id) {
+        Ok(id) => id,
+        Err(_) => {
+            return (
+                axum::http::StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "status": "error",
+                    "message": format!("Invalid user ID format: {}", request.user_id)
+                })),
+            )
+                .into_response();
+        }
+    };
+
+    let user_collection: mongodb::Collection<crate::model::user::User> =
+        state.db_client.database(&state.db_name).collection("User");
+
+    let mut user = match user_collection
+        .find_one(mongodb::bson::doc! { "_id": &user_id })
+        .await
+    {
+        Ok(Some(u)) => u,
+        Ok(None) => {
+            return (
+                axum::http::StatusCode::NOT_FOUND,
+                Json(json!({
+                    "status": "error",
+                    "message": format!("User not found: {}", request.user_id)
+                })),
+            )
+                .into_response();
+        }
+        Err(e) => {
+            tracing::error!("Failed to fetch user in award_top_recipe_handler: {}", e);
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "status": "error",
+                    "message": format!("Database error: {}", e)
+                })),
+            )
+                .into_response();
+        }
+    };
+    user.ensure_badges();
+
+    if user.badges.contains(&badge_name.to_string()) {
+        tracing::info!(
+            "User {} already has badge {}. Skipping award.",
+            request.user_id,
+            badge_name
+        );
+        return Json(json!({
+            "status": "already_awarded",
+            "message": "User already has this badge",
+            "badge": badge_name
+        }))
+        .into_response();
+    }
+
+    // Award badge
+    user.badges.push(badge_name.to_string());
+
+    if let Err(e) = user_collection
+        .update_one(
+            mongodb::bson::doc! { "_id": &user_id },
+            mongodb::bson::doc! { "$set": { "badges": &user.badges } },
+        )
+        .await
+    {
+        tracing::error!(
+            "Failed to update user badges in award_top_recipe_handler: {}",
+            e
+        );
+        return (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "status": "error",
+                "message": format!("Failed to update user badges: {}", e)
+            })),
+        )
+            .into_response();
+    }
+
+    tracing::info!(
+        "Successfully awarded badge {} to user {}",
+        badge_name,
+        request.user_id
+    );
+
+    // Send notification
+    if let Some(ref email) = user.email {
+        let notifier = crate::service::notifier::Notifier::from_env();
+        let metadata = serde_json::json!({
+            "badgeName": badge_name,
+            "userId": &request.user_id
+        });
+        notifier
+            .send_notification("NEW_BADGE", email, metadata)
+            .await;
+    }
+
+    Json(json!({
+        "status": "success",
+        "message": format!("Badge {} awarded successfully", badge_name),
+        "badge": badge_name
+    }))
+    .into_response()
+}

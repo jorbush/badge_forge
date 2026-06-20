@@ -70,6 +70,49 @@ Endpoint for requesting a badge update for a user. Protected by API key authenti
 }
 ```
 
+### Award Top Recipe Endpoint
+
+```
+POST /award-top-recipe
+```
+
+Endpoint for awarding a top recipe badge (`recipe_of_the_week`, `recipe_of_the_month`, or `recipe_of_the_year`) to a user. Protected by API key authentication.
+
+**Headers:**
+- `X-API-Key`: Your API key for authentication
+
+**Request Body:**
+```json
+{
+  "category": "week",
+  "user_id": "669b7be8f163ac944bc8a16e",
+  "recipe_id": "669b7be8f163ac944bc8a16f"
+}
+```
+
+**Fields:**
+- `category`: `"week"` | `"month"` | `"year"` (Required)
+- `user_id`: MongoDB ObjectId of the user to award the badge (Required)
+- `recipe_id`: MongoDB ObjectId of the winning recipe (Required)
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "message": "Badge recipe_of_the_week awarded successfully",
+  "badge": "recipe_of_the_week"
+}
+```
+
+**Response (Already Awarded):**
+```json
+{
+  "status": "already_awarded",
+  "message": "User already has this badge",
+  "badge": "recipe_of_the_week"
+}
+```
+
 ### Queue Status Endpoint
 
 ```

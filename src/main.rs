@@ -18,7 +18,7 @@ use tracing_subscriber::FmtSubscriber;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
-    // Initialize tracing
+
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .finish();
@@ -26,7 +26,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Starting Badge Forge API");
 
-    // Set up MongoDB connection
     let mongodb_uri =
         std::env::var("MONGODB_URI").unwrap_or_else(|_| "mongodb://localhost:27017".to_string());
     let db_name = std::env::var("DB_NAME").unwrap_or_else(|_| "badgeforge".to_string());
@@ -41,17 +40,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
     info!("Connected to MongoDB");
 
-    // Set up the badge update queue
     let (queue, receiver) = InMemoryQueue::new(100);
     let queue_arc = Arc::new(queue);
     let badge_queue = queue_arc.clone() as Arc<dyn BadgeUpdateQueue>;
 
-    // Set up the badge processor
     let processor = BadgeForgeProcessor::new(db_client.clone(), db_name.clone());
     processor.start(receiver, queue_arc.clone()).await;
 
-    // Create the application state
-    let state = Arc::new(AppState { badge_queue });
+    let state = Arc::new(AppState {
+        badge_queue,
+        db_client: db_client.clone(),
+        db_name: db_name.clone(),
+    });
     let app = create_router(state);
     info!("Badge Forge API started successfully on port 4000 🎖️");
     axum::serve(tokio::net::TcpListener::bind("0.0.0.0:4000").await?, app).await?;
