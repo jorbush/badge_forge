@@ -98,7 +98,7 @@ impl BadgeForgeProcessor {
         user_collection
             .update_one(
                 mongodb::bson::doc! { "_id": user_id },
-                mongodb::bson::doc! { "$set": { "badges": &updated_badges, "level": new_user_level as i32, "verified": verified } },
+                mongodb::bson::doc! { "$set": { "badges": &updated_badges, "level": new_user_level, "verified": verified } },
             )
             .await
             .map_err(|e| format!("Failed to update user badges: {}", e))?;
