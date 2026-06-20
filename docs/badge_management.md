@@ -31,6 +31,13 @@ This function assigns achievement badges based on two categories:
    - `week_streak`: Awarded for posting at least one recipe per day for 7 consecutive days
    - `month_streak`: Awarded for posting at least one recipe per week for 4 consecutive weeks
 
+Additionally, the system manages:
+
+3. **Top Recipe badges**: Awarded to users whose recipes win a community voting session. These are awarded on-demand via the `/award-top-recipe` API endpoint:
+   - `recipe_of_the_week`: Awarded to the winner of the Recipe of the Week voting poll
+   - `recipe_of_the_month`: Awarded to the winner of the Recipe of the Month voting poll
+   - `recipe_of_the_year`: Awarded to the winner of the Recipe of the Year voting poll
+
 Badges are only added if they don't already exist in the user's badge collection.
 
 #### Example

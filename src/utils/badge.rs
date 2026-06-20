@@ -73,7 +73,7 @@ pub fn is_month_streak(recipes: &[Recipe]) -> bool {
     }
 
     let mut sorted_recipes = recipes.to_vec();
-    sorted_recipes.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    sorted_recipes.sort_by_key(|b| std::cmp::Reverse(b.created_at));
     let most_recent = sorted_recipes[0].created_at.date_naive();
     let mut current_year = most_recent.iso_week().year();
     let mut current_week = most_recent.iso_week().week();

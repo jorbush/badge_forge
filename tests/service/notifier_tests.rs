@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use axum::{Router, routing::post};
-    use badge_forge::service::notifier::Notifier;
+    use badge_forge::service::notifier::{HttpNotifier, Notifier};
     use serde_json::json;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -34,7 +34,7 @@ mod tests {
     async fn test_send_notification_success() {
         let (url, req_count) = run_mock_server().await;
 
-        let notifier = Notifier::new(url, "test_api_key".to_string());
+        let notifier = HttpNotifier::new(url, "test_api_key".to_string());
         let metadata = json!({ "userId": "123" });
 
         notifier
@@ -47,7 +47,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_send_notification_empty_url() {
-        let notifier = Notifier::new("".to_string(), "test_api_key".to_string());
+        let notifier = HttpNotifier::new("".to_string(), "test_api_key".to_string());
         let metadata = json!({ "userId": "123" });
 
         // Should just log and return without error (or panic)
