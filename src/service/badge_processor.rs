@@ -13,15 +13,12 @@ use crate::{
 
 pub struct BadgeForgeProcessor {
     db: Arc<dyn Database>,
-    notifier: Notifier,
+    notifier: Arc<dyn Notifier>,
 }
 
 impl BadgeForgeProcessor {
-    pub fn new(db: Arc<dyn Database>) -> Self {
-        Self {
-            db,
-            notifier: Notifier::from_env(),
-        }
+    pub fn new(db: Arc<dyn Database>, notifier: Arc<dyn Notifier>) -> Self {
+        Self { db, notifier }
     }
 
     pub async fn start(

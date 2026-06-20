@@ -112,7 +112,7 @@ mod endpoints_tests {
 
     #[tokio::test]
     async fn test_award_top_recipe_success() {
-        let (client, db) = setup_test_client_with_db().await;
+        let (client, db, notifier) = setup_test_client_with_db().await;
 
         // Insert a dummy user directly into MockDatabase
         let user_oid = ObjectId::new();
@@ -120,7 +120,7 @@ mod endpoints_tests {
         let dummy_user = User {
             _id: user_oid,
             name: Some("Test User".to_string()),
-            email: Some(email),
+            email: Some(email.clone()),
             level: 1,
             badges: vec![],
             verified: Some(false),
@@ -157,6 +157,14 @@ mod endpoints_tests {
             );
         }
 
+        // Verify notification was sent
+        {
+            let notes = notifier.notifications.lock().unwrap();
+            assert_eq!(notes.len(), 1);
+            assert_eq!(notes[0].0, "NEW_BADGE");
+            assert_eq!(notes[0].1, email);
+        }
+
         // Call again and verify it detects already_awarded
         let response_dup = client
             .post("/award-top-recipe")
@@ -170,5 +178,11 @@ mod endpoints_tests {
         assert_eq!(response_dup.status(), StatusCode::OK);
         let body_dup: serde_json::Value = serde_json::from_str(&response_dup.text().await).unwrap();
         assert_eq!(body_dup["status"], "already_awarded");
+
+        // Notification count should still be 1 (duplicate doesn't trigger new notification)
+        {
+            let notes = notifier.notifications.lock().unwrap();
+            assert_eq!(notes.len(), 1);
+        }
     }
 }

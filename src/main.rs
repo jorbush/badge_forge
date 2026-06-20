@@ -49,10 +49,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         db_name.clone(),
     )) as Arc<dyn service::db::Database>;
 
-    let processor = BadgeForgeProcessor::new(db.clone());
+    let notifier = Arc::new(service::notifier::HttpNotifier::from_env())
+        as Arc<dyn service::notifier::Notifier>;
+
+    let processor = BadgeForgeProcessor::new(db.clone(), notifier.clone());
     processor.start(receiver, queue_arc.clone()).await;
 
-    let state = Arc::new(AppState { badge_queue, db });
+    let state = Arc::new(AppState {
+        badge_queue,
+        db,
+        notifier,
+    });
     let app = create_router(state);
     info!("Badge Forge API started successfully on port 4000 🎖️");
     axum::serve(tokio::net::TcpListener::bind("0.0.0.0:4000").await?, app).await?;

@@ -1,13 +1,24 @@
+use async_trait::async_trait;
 use reqwest::Client;
 use tracing::{error, info};
 
-pub struct Notifier {
+#[async_trait]
+pub trait Notifier: Send + Sync {
+    async fn send_notification(
+        &self,
+        notification_type: &str,
+        recipient: &str,
+        metadata: serde_json::Value,
+    );
+}
+
+pub struct HttpNotifier {
     client: Client,
     url: String,
     api_key: String,
 }
 
-impl Notifier {
+impl HttpNotifier {
     pub fn new(url: String, api_key: String) -> Self {
         let client = Client::builder()
             .timeout(std::time::Duration::from_secs(5))
@@ -29,8 +40,11 @@ impl Notifier {
         let notifier_api_key = std::env::var("NOTIFIER_API_KEY").unwrap_or_default();
         Self::new(notifier_url, notifier_api_key)
     }
+}
 
-    pub async fn send_notification(
+#[async_trait]
+impl Notifier for HttpNotifier {
+    async fn send_notification(
         &self,
         notification_type: &str,
         recipient: &str,

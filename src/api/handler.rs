@@ -62,11 +62,9 @@ pub async fn award_top_recipe_handler(
 ) -> impl IntoResponse {
     tracing::info!("Award top recipe request: {:?}", request);
 
-    let badge_name = match request.category.as_str() {
-        "week" => "recipe_of_the_week",
-        "month" => "recipe_of_the_month",
-        "year" => "recipe_of_the_year",
-        _ => {
+    let category = match crate::model::category::Category::parse(&request.category) {
+        Some(cat) => cat,
+        None => {
             return (
                 axum::http::StatusCode::BAD_REQUEST,
                 Json(json!({
@@ -77,6 +75,7 @@ pub async fn award_top_recipe_handler(
                 .into_response();
         }
     };
+    let badge_name = category.badge_name();
 
     let user_id = match mongodb::bson::oid::ObjectId::parse_str(&request.user_id) {
         Ok(id) => id,
@@ -92,7 +91,7 @@ pub async fn award_top_recipe_handler(
         }
     };
 
-    let mut user = match state.db.find_user(&user_id).await {
+    let user = match state.db.find_user(&user_id).await {
         Ok(Some(u)) => u,
         Ok(None) => {
             return (
@@ -116,62 +115,68 @@ pub async fn award_top_recipe_handler(
                 .into_response();
         }
     };
-    user.ensure_badges();
 
-    if user.badges.contains(&badge_name.to_string()) {
-        tracing::info!(
-            "User {} already has badge {}. Skipping award.",
-            request.user_id,
-            badge_name
-        );
-        return Json(json!({
-            "status": "already_awarded",
-            "message": "User already has this badge",
-            "badge": badge_name
-        }))
-        .into_response();
-    }
+    match state.db.add_badge_to_user(&user_id, badge_name).await {
+        Ok(Some(true)) => {
+            tracing::info!(
+                "Successfully awarded badge {} to user {}",
+                badge_name,
+                request.user_id
+            );
 
-    // Award badge
-    user.badges.push(badge_name.to_string());
+            // Send notification using state.notifier
+            if let Some(ref email) = user.email {
+                let metadata = serde_json::json!({
+                    "badgeName": badge_name,
+                    "userId": &request.user_id
+                });
+                state
+                    .notifier
+                    .send_notification("NEW_BADGE", email, metadata)
+                    .await;
+            }
 
-    if let Err(e) = state.db.update_user_badges(&user_id, &user.badges).await {
-        tracing::error!(
-            "Failed to update user badges in award_top_recipe_handler: {}",
-            e
-        );
-        return (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "status": "success",
+                "message": format!("Badge {} awarded successfully", badge_name),
+                "badge": badge_name
+            }))
+            .into_response()
+        }
+        Ok(Some(false)) => {
+            tracing::info!(
+                "User {} already has badge {}. Skipping award.",
+                request.user_id,
+                badge_name
+            );
+            Json(json!({
+                "status": "already_awarded",
+                "message": "User already has this badge",
+                "badge": badge_name
+            }))
+            .into_response()
+        }
+        Ok(None) => (
+            axum::http::StatusCode::NOT_FOUND,
             Json(json!({
                 "status": "error",
-                "message": format!("Failed to update user badges: {}", e)
+                "message": format!("User not found: {}", request.user_id)
             })),
         )
-            .into_response();
+            .into_response(),
+        Err(e) => {
+            tracing::error!(
+                "Failed to update user badges in award_top_recipe_handler: {}",
+                e
+            );
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "status": "error",
+                    "message": format!("Failed to update user badges: {}", e)
+                })),
+            )
+                .into_response()
+        }
     }
-
-    tracing::info!(
-        "Successfully awarded badge {} to user {}",
-        badge_name,
-        request.user_id
-    );
-
-    // Send notification
-    if let Some(ref email) = user.email {
-        let notifier = crate::service::notifier::Notifier::from_env();
-        let metadata = serde_json::json!({
-            "badgeName": badge_name,
-            "userId": &request.user_id
-        });
-        notifier
-            .send_notification("NEW_BADGE", email, metadata)
-            .await;
-    }
-
-    Json(json!({
-        "status": "success",
-        "message": format!("Badge {} awarded successfully", badge_name),
-        "badge": badge_name
-    }))
-    .into_response()
 }

@@ -8,8 +8,6 @@ use mongodb::bson::oid::ObjectId;
 #[async_trait]
 pub trait Database: Send + Sync {
     async fn find_user(&self, user_id: &ObjectId) -> Result<Option<User>, String>;
-    async fn update_user_badges(&self, user_id: &ObjectId, badges: &[String])
-    -> Result<(), String>;
     async fn update_user_badges_and_level(
         &self,
         user_id: &ObjectId,
@@ -18,6 +16,11 @@ pub trait Database: Send + Sync {
         verified: bool,
     ) -> Result<(), String>;
     async fn get_user_recipes(&self, user_id: &ObjectId) -> Result<Vec<Recipe>, String>;
+    async fn add_badge_to_user(
+        &self,
+        user_id: &ObjectId,
+        badge: &str,
+    ) -> Result<Option<bool>, String>;
 }
 
 pub struct MongoDatabase {
@@ -41,25 +44,6 @@ impl Database for MongoDatabase {
         user_collection
             .find_one(mongodb::bson::doc! { "_id": user_id })
             .await
-            .map_err(|e| format!("Database error: {}", e))
-    }
-
-    async fn update_user_badges(
-        &self,
-        user_id: &ObjectId,
-        badges: &[String],
-    ) -> Result<(), String> {
-        let user_collection = self
-            .client
-            .database(&self.db_name)
-            .collection::<User>("User");
-        user_collection
-            .update_one(
-                mongodb::bson::doc! { "_id": user_id },
-                mongodb::bson::doc! { "$set": { "badges": badges } },
-            )
-            .await
-            .map(|_| ())
             .map_err(|e| format!("Database error: {}", e))
     }
 
@@ -103,5 +87,31 @@ impl Database for MongoDatabase {
             recipes.push(recipe);
         }
         Ok(recipes)
+    }
+
+    async fn add_badge_to_user(
+        &self,
+        user_id: &ObjectId,
+        badge: &str,
+    ) -> Result<Option<bool>, String> {
+        let user_collection = self
+            .client
+            .database(&self.db_name)
+            .collection::<User>("User");
+        let result = user_collection
+            .update_one(
+                mongodb::bson::doc! { "_id": user_id },
+                mongodb::bson::doc! { "$addToSet": { "badges": badge } },
+            )
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
+
+        if result.matched_count == 0 {
+            Ok(None)
+        } else if result.modified_count == 0 {
+            Ok(Some(false))
+        } else {
+            Ok(Some(true))
+        }
     }
 }
