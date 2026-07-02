@@ -12,17 +12,13 @@ use mongodb::{Client, options::ClientOptions};
 use queue::InMemoryQueue;
 use service::badge_processor::BadgeForgeProcessor;
 use std::sync::Arc;
-use tracing::{Level, info};
-use tracing_subscriber::FmtSubscriber;
+use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
-        .finish();
-    tracing::subscriber::set_global_default(subscriber).expect("Failed to set up logging");
+    utils::logging::init_logging("badge_forge");
 
     info!("Starting Badge Forge API");
 
