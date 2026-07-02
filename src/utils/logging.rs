@@ -80,14 +80,16 @@ async fn flush_logs(
         .send()
         .await;
 
-    if let Err(e) = res {
-        eprintln!("[axiom-logging] Failed to send logs to Axiom: {}", e);
-    } else if let Ok(resp) = res {
-        if !resp.status().is_success() {
+    match res {
+        Err(e) => {
+            eprintln!("[axiom-logging] Failed to send logs to Axiom: {}", e);
+        }
+        Ok(resp) if !resp.status().is_success() => {
             if let Ok(text) = resp.text().await {
                 eprintln!("[axiom-logging] Failed to send logs to Axiom: {}", text);
             }
         }
+        _ => {}
     }
 }
 
