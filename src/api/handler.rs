@@ -1,6 +1,9 @@
 use crate::api::state::AppState;
+use crate::model::evaluate_request::EvaluateRequest;
+use crate::model::evaluate_request::EventType;
 use crate::model::level::LevelRequest;
-use axum::{Json, extract::State, response::IntoResponse};
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
+use mongodb::bson::oid::ObjectId;
 use serde_json::json;
 use std::sync::Arc;
 
@@ -179,4 +182,136 @@ pub async fn award_top_recipe_handler(
                 .into_response()
         }
     }
+}
+
+pub async fn evaluate_handler(
+    State(state): State<Arc<AppState>>,
+    Json(request): Json<EvaluateRequest>,
+) -> impl IntoResponse {
+    tracing::info!("Evaluate request: {:?}", request);
+
+    if request.event != EventType::QuestFulfilled {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "status": "error",
+                "message": format!("Unsupported event type: {}", request.event)
+            })),
+        )
+            .into_response();
+    }
+
+    let user_id = match ObjectId::parse_str(&request.user_id) {
+        Ok(id) => id,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "status": "error",
+                    "message": format!("Invalid user ID format: {}", request.user_id)
+                })),
+            )
+                .into_response();
+        }
+    };
+
+    let user = match state.db.find_user(&user_id).await {
+        Ok(Some(u)) => u,
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(json!({
+                    "status": "error",
+                    "message": format!("User not found: {}", request.user_id)
+                })),
+            )
+                .into_response();
+        }
+        Err(e) => {
+            tracing::error!("Failed to fetch user in evaluate_handler: {}", e);
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "status": "error",
+                    "message": format!("Database error: {}", e)
+                })),
+            )
+                .into_response();
+        }
+    };
+
+    let count = match state
+        .db
+        .count_completed_quests_solved_by_user(&user_id)
+        .await
+    {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::error!("Failed to count completed quests: {}", e);
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "status": "error",
+                    "message": format!("Failed to count completed quests: {}", e)
+                })),
+            )
+                .into_response();
+        }
+    };
+
+    let mut granted_badges = Vec::new();
+    if count >= 1 {
+        granted_badges.push("quest_solver_1.webp");
+    }
+    if count >= 10 {
+        granted_badges.push("quest_solver_10.webp");
+    }
+    if count >= 25 {
+        granted_badges.push("quest_solver_25.webp");
+    }
+
+    let mut newly_awarded = Vec::new();
+    for badge in &granted_badges {
+        match state.db.add_badge_to_user(&user_id, badge).await {
+            Ok(Some(true)) => {
+                newly_awarded.push(*badge);
+                if let Some(ref email) = user.email {
+                    let metadata = serde_json::json!({
+                        "badgeName": badge,
+                        "userId": &request.user_id
+                    });
+                    state
+                        .notifier
+                        .send_notification("NEW_BADGE", email, metadata)
+                        .await;
+                }
+            }
+            Ok(Some(false)) => {
+                tracing::debug!("User {} already has badge {}", request.user_id, badge);
+            }
+            Ok(None) => {
+                tracing::warn!(
+                    "User {} not found when adding badge {}",
+                    request.user_id,
+                    badge
+                );
+            }
+            Err(e) => {
+                tracing::error!(
+                    "Failed to add badge {} to user {}: {}",
+                    badge,
+                    request.user_id,
+                    e
+                );
+            }
+        }
+    }
+
+    Json(json!({
+        "status": "success",
+        "granted_badges": granted_badges,
+        "newly_awarded": newly_awarded,
+        "total_completed": count
+    }))
+    .into_response()
 }

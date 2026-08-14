@@ -21,6 +21,10 @@ pub trait Database: Send + Sync {
         user_id: &ObjectId,
         badge: &str,
     ) -> Result<Option<bool>, String>;
+    async fn count_completed_quests_solved_by_user(
+        &self,
+        user_id: &ObjectId,
+    ) -> Result<u64, String>;
 }
 
 pub struct MongoDatabase {
@@ -113,5 +117,25 @@ impl Database for MongoDatabase {
         } else {
             Ok(Some(true))
         }
+    }
+
+    async fn count_completed_quests_solved_by_user(
+        &self,
+        user_id: &ObjectId,
+    ) -> Result<u64, String> {
+        let quest_collection = self
+            .client
+            .database(&self.db_name)
+            .collection::<mongodb::bson::Document>("Quest");
+
+        let count = quest_collection
+            .count_documents(mongodb::bson::doc! {
+                "status": "completed",
+                "acceptedSolverId": user_id
+            })
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
+
+        Ok(count)
     }
 }

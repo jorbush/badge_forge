@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use crate::api::{
     handler::{
-        award_top_recipe_handler, health_handler, queue_status_handler, update_badges_handler,
-        version_handler,
+        award_top_recipe_handler, evaluate_handler, health_handler, queue_status_handler,
+        update_badges_handler, version_handler,
     },
     state::AppState,
 };
@@ -18,6 +18,8 @@ pub fn create_router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/update", post(update_badges_handler))
         .route("/award-top-recipe", post(award_top_recipe_handler))
+        .route("/evaluate", post(evaluate_handler))
+        .route("/api/evaluate", post(evaluate_handler))
         .route("/status", get(queue_status_handler))
         .route_layer(from_fn(require_api_key))
         .route("/health", get(health_handler))

@@ -113,6 +113,39 @@ Endpoint for awarding a top recipe badge (`recipe_of_the_week`, `recipe_of_the_m
 }
 ```
 
+### Event Evaluation Endpoint
+
+```
+POST /api/evaluate  (Alias: POST /evaluate)
+```
+
+Endpoint for triggering event-driven badge evaluation for a user. Evaluates thresholds for events such as `QUEST_FULFILLED` and awards badges dynamically (`quest_solver_1.webp`, `quest_solver_10.webp`, `quest_solver_25.webp`). Protected by API key authentication.
+
+**Headers:**
+- `X-API-Key`: Your API key for authentication
+
+**Request Body:**
+```json
+{
+  "userId": "669b7be8f163ac944bc8a16e",
+  "event": "QUEST_FULFILLED"
+}
+```
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "granted_badges": [
+    "quest_solver_1.webp"
+  ],
+  "newly_awarded": [
+    "quest_solver_1.webp"
+  ],
+  "total_completed": 1
+}
+```
+
 ### Queue Status Endpoint
 
 ```

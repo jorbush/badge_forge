@@ -84,6 +84,13 @@ Header: X-API-Key: your_api_key_here
 Body: { "user_id": "5f8d0d55b54764421b7156d3" }
 ```
 
+### Event Evaluation (Quest Solver Badges)
+```
+POST /api/evaluate  (Alias: /evaluate)
+Header: X-API-Key: your_api_key_here
+Body: { "userId": "5f8d0d55b54764421b7156d3", "event": "QUEST_FULFILLED" }
+```
+
 ### Queue Status
 ```
 GET /queue/status

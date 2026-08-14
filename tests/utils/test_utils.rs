@@ -18,9 +18,11 @@ use mongodb::bson::oid::ObjectId;
 pub struct MockDatabase {
     pub users: Mutex<HashMap<ObjectId, User>>,
     pub recipes: Mutex<HashMap<ObjectId, Vec<Recipe>>>,
+    pub completed_quests: Mutex<HashMap<ObjectId, u64>>,
 }
 
 impl MockDatabase {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self::default()
     }
@@ -31,6 +33,7 @@ impl Default for MockDatabase {
         Self {
             users: Mutex::new(HashMap::new()),
             recipes: Mutex::new(HashMap::new()),
+            completed_quests: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -80,6 +83,14 @@ impl Database for MockDatabase {
         } else {
             Ok(None)
         }
+    }
+
+    async fn count_completed_quests_solved_by_user(
+        &self,
+        user_id: &ObjectId,
+    ) -> Result<u64, String> {
+        let counts = self.completed_quests.lock().unwrap();
+        Ok(counts.get(user_id).copied().unwrap_or(0))
     }
 }
 
@@ -144,6 +155,7 @@ pub async fn setup_test_client_with_db() -> (TestClient, Arc<MockDatabase>, Arc<
     )
 }
 
+#[allow(dead_code)]
 pub async fn setup_test_client() -> TestClient {
     let (client, _, _) = setup_test_client_with_db().await;
     client
