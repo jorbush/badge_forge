@@ -5,6 +5,7 @@ use futures_util::stream::TryStreamExt;
 use mongodb::Client;
 use mongodb::bson::oid::ObjectId;
 
+#[allow(clippy::double_must_use)]
 #[async_trait]
 pub trait Database: Send + Sync {
     async fn find_user(&self, user_id: &ObjectId) -> Result<Option<User>, String>;
