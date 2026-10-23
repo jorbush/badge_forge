@@ -190,7 +190,7 @@ pub async fn evaluate_handler(
 ) -> impl IntoResponse {
     tracing::info!("Evaluate request: {:?}", request);
 
-    if request.event != EventType::QuestFulfilled {
+    if request.event != EventType::QuestFulfilled && request.event != EventType::CooksnapPosted {
         return (
             StatusCode::BAD_REQUEST,
             Json(json!({
@@ -240,35 +240,67 @@ pub async fn evaluate_handler(
         }
     };
 
-    let count = match state
-        .db
-        .count_completed_quests_solved_by_user(&user_id)
-        .await
-    {
-        Ok(c) => c,
-        Err(e) => {
-            tracing::error!("Failed to count completed quests: {}", e);
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({
-                    "status": "error",
-                    "message": format!("Failed to count completed quests: {}", e)
-                })),
-            )
-                .into_response();
+    let (count, granted_badges) = match request.event {
+        EventType::QuestFulfilled => {
+            let count = match state
+                .db
+                .count_completed_quests_solved_by_user(&user_id)
+                .await
+            {
+                Ok(c) => c,
+                Err(e) => {
+                    tracing::error!("Failed to count completed quests: {}", e);
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({
+                            "status": "error",
+                            "message": format!("Failed to count completed quests: {}", e)
+                        })),
+                    )
+                        .into_response();
+                }
+            };
+            let mut badges = Vec::new();
+            if count >= 1 {
+                badges.push("quest_solver_1.webp");
+            }
+            if count >= 10 {
+                badges.push("quest_solver_10.webp");
+            }
+            if count >= 25 {
+                badges.push("quest_solver_25.webp");
+            }
+            (count, badges)
         }
+        EventType::CooksnapPosted => {
+            let count = match state.db.count_cooksnaps_by_user(&user_id).await {
+                Ok(c) => c,
+                Err(e) => {
+                    tracing::error!("Failed to count cooksnaps: {}", e);
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({
+                            "status": "error",
+                            "message": format!("Failed to count cooksnaps: {}", e)
+                        })),
+                    )
+                        .into_response();
+                }
+            };
+            let mut badges = Vec::new();
+            if count >= 1 {
+                badges.push("kitchen_explorer_1.webp");
+            }
+            if count >= 5 {
+                badges.push("cooksnap_master_5.webp");
+            }
+            if count >= 15 {
+                badges.push("cooksnap_master_15.webp");
+            }
+            (count, badges)
+        }
+        _ => (0, Vec::new()),
     };
-
-    let mut granted_badges = Vec::new();
-    if count >= 1 {
-        granted_badges.push("quest_solver_1.webp");
-    }
-    if count >= 10 {
-        granted_badges.push("quest_solver_10.webp");
-    }
-    if count >= 25 {
-        granted_badges.push("quest_solver_25.webp");
-    }
 
     let mut newly_awarded = Vec::new();
     for badge in &granted_badges {

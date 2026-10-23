@@ -19,6 +19,7 @@ pub struct MockDatabase {
     pub users: Mutex<HashMap<ObjectId, User>>,
     pub recipes: Mutex<HashMap<ObjectId, Vec<Recipe>>>,
     pub completed_quests: Mutex<HashMap<ObjectId, u64>>,
+    pub cooksnaps: Mutex<HashMap<ObjectId, u64>>,
 }
 
 impl MockDatabase {
@@ -34,6 +35,7 @@ impl Default for MockDatabase {
             users: Mutex::new(HashMap::new()),
             recipes: Mutex::new(HashMap::new()),
             completed_quests: Mutex::new(HashMap::new()),
+            cooksnaps: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -90,6 +92,11 @@ impl Database for MockDatabase {
         user_id: &ObjectId,
     ) -> Result<u64, String> {
         let counts = self.completed_quests.lock().unwrap();
+        Ok(counts.get(user_id).copied().unwrap_or(0))
+    }
+
+    async fn count_cooksnaps_by_user(&self, user_id: &ObjectId) -> Result<u64, String> {
+        let counts = self.cooksnaps.lock().unwrap();
         Ok(counts.get(user_id).copied().unwrap_or(0))
     }
 }

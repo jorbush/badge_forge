@@ -25,6 +25,7 @@ pub trait Database: Send + Sync {
         &self,
         user_id: &ObjectId,
     ) -> Result<u64, String>;
+    async fn count_cooksnaps_by_user(&self, user_id: &ObjectId) -> Result<u64, String>;
 }
 
 pub struct MongoDatabase {
@@ -132,6 +133,24 @@ impl Database for MongoDatabase {
             .count_documents(mongodb::bson::doc! {
                 "status": "completed",
                 "acceptedSolverId": user_id
+            })
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
+
+        Ok(count)
+    }
+
+    async fn count_cooksnaps_by_user(&self, user_id: &ObjectId) -> Result<u64, String> {
+        let comment_collection = self
+            .client
+            .database(&self.db_name)
+            .collection::<mongodb::bson::Document>("Comment");
+
+        let count = comment_collection
+            .count_documents(mongodb::bson::doc! {
+                "userId": user_id,
+                "isCooked": true,
+                "imageSrc": { "$ne": mongodb::bson::Bson::Null },
             })
             .await
             .map_err(|e| format!("Database error: {}", e))?;

@@ -84,11 +84,13 @@ Header: X-API-Key: your_api_key_here
 Body: { "user_id": "5f8d0d55b54764421b7156d3" }
 ```
 
-### Event Evaluation (Quest Solver Badges)
+### Event Evaluation (Quest & Cooksnap Badges)
 ```
 POST /api/evaluate  (Alias: /evaluate)
 Header: X-API-Key: your_api_key_here
 Body: { "userId": "5f8d0d55b54764421b7156d3", "event": "QUEST_FULFILLED" }
+# Or for cooksnaps:
+Body: { "userId": "5f8d0d55b54764421b7156d3", "event": "COOKSNAP_POSTED" }
 ```
 
 ### Queue Status
