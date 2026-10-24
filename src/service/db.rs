@@ -142,19 +142,17 @@ impl Database for MongoDatabase {
     }
 
     async fn count_cooksnaps_by_user(&self, user_id: &ObjectId) -> Result<u64, String> {
-        let comment_collection = self
+        let cooksnap_collection = self
             .client
             .database(&self.db_name)
-            .collection::<mongodb::bson::Document>("Comment");
+            .collection::<mongodb::bson::Document>("Cooksnap");
 
-        let count = comment_collection
+        let count = cooksnap_collection
             .count_documents(mongodb::bson::doc! {
                 "userId": user_id,
-                "isCooked": true,
-                "imageSrc": { "$ne": mongodb::bson::Bson::Null },
             })
             .await
-            .map_err(|e| format!("Database error: {}", e))?;
+            .map_err(|e| format!("Database error querying Cooksnap: {}", e))?;
 
         Ok(count)
     }
