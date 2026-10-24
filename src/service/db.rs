@@ -5,6 +5,7 @@ use futures_util::stream::TryStreamExt;
 use mongodb::Client;
 use mongodb::bson::oid::ObjectId;
 
+#[allow(clippy::double_must_use)]
 #[async_trait]
 pub trait Database: Send + Sync {
     async fn find_user(&self, user_id: &ObjectId) -> Result<Option<User>, String>;
@@ -25,6 +26,7 @@ pub trait Database: Send + Sync {
         &self,
         user_id: &ObjectId,
     ) -> Result<u64, String>;
+    async fn count_cooksnaps_by_user(&self, user_id: &ObjectId) -> Result<u64, String>;
 }
 
 pub struct MongoDatabase {
@@ -135,6 +137,22 @@ impl Database for MongoDatabase {
             })
             .await
             .map_err(|e| format!("Database error: {}", e))?;
+
+        Ok(count)
+    }
+
+    async fn count_cooksnaps_by_user(&self, user_id: &ObjectId) -> Result<u64, String> {
+        let cooksnap_collection = self
+            .client
+            .database(&self.db_name)
+            .collection::<mongodb::bson::Document>("Cooksnap");
+
+        let count = cooksnap_collection
+            .count_documents(mongodb::bson::doc! {
+                "userId": user_id,
+            })
+            .await
+            .map_err(|e| format!("Database error querying Cooksnap: {}", e))?;
 
         Ok(count)
     }

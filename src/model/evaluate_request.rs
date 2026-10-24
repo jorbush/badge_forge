@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 pub enum EventType {
     #[serde(rename = "QUEST_FULFILLED")]
     QuestFulfilled,
+    #[serde(rename = "COOKSNAP_POSTED")]
+    CooksnapPosted,
     #[serde(untagged)]
     Other(String),
 }
@@ -12,6 +14,7 @@ impl std::fmt::Display for EventType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             EventType::QuestFulfilled => write!(f, "QUEST_FULFILLED"),
+            EventType::CooksnapPosted => write!(f, "COOKSNAP_POSTED"),
             EventType::Other(s) => write!(f, "{}", s),
         }
     }

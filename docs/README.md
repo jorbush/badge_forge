@@ -119,16 +119,28 @@ Endpoint for awarding a top recipe badge (`recipe_of_the_week`, `recipe_of_the_m
 POST /api/evaluate  (Alias: POST /evaluate)
 ```
 
-Endpoint for triggering event-driven badge evaluation for a user. Evaluates thresholds for events such as `QUEST_FULFILLED` and awards badges dynamically (`quest_solver_1.webp`, `quest_solver_10.webp`, `quest_solver_25.webp`). Protected by API key authentication.
+Endpoint for triggering event-driven badge evaluation for a user. Evaluates thresholds for events and awards badges dynamically:
+- `QUEST_FULFILLED`: Evaluates completed community quests solved by the user (`quest_solver_1.webp`, `quest_solver_10.webp`, `quest_solver_25.webp`).
+- `COOKSNAP_POSTED`: Evaluates dishes prepared and shared with photos by the user (`kitchen_explorer_1.webp`, `cooksnap_master_5.webp`, `cooksnap_master_15.webp`).
+
+Protected by API key authentication.
 
 **Headers:**
 - `X-API-Key`: Your API key for authentication
 
-**Request Body:**
+**Request Body (Quest Example):**
 ```json
 {
   "userId": "669b7be8f163ac944bc8a16e",
   "event": "QUEST_FULFILLED"
+}
+```
+
+**Request Body (Cooksnap Example):**
+```json
+{
+  "userId": "669b7be8f163ac944bc8a16e",
+  "event": "COOKSNAP_POSTED"
 }
 ```
 
@@ -137,10 +149,10 @@ Endpoint for triggering event-driven badge evaluation for a user. Evaluates thre
 {
   "status": "success",
   "granted_badges": [
-    "quest_solver_1.webp"
+    "kitchen_explorer_1.webp"
   ],
   "newly_awarded": [
-    "quest_solver_1.webp"
+    "kitchen_explorer_1.webp"
   ],
   "total_completed": 1
 }

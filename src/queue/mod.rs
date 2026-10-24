@@ -6,6 +6,7 @@ use tracing::info;
 use crate::model::level::LevelRequest;
 
 /// Queue trait defining operations for a badge update queue
+#[allow(clippy::double_must_use)]
 #[async_trait]
 pub trait BadgeUpdateQueue: Send + Sync {
     async fn enqueue(&self, request: LevelRequest) -> Result<(), String>;

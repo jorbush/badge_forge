@@ -41,6 +41,11 @@ This function assigns achievement badges based on two categories:
    - `quest_solver_10.webp`: Silver Quest Solver (Awarded upon fulfilling 10 distinct community quests)
    - `quest_solver_25.webp`: Gold Quest Master (Awarded upon fulfilling 25 distinct community quests)
 
+5. **Cooksnap badges**: Awarded on-demand via the `/api/evaluate` (or `/evaluate`) endpoint when a user cooks community recipes and shares a dish photo (`event: "COOKSNAP_POSTED"`):
+   - `kitchen_explorer_1.webp`: Kitchen Explorer (Bronze) (Awarded upon sharing 1 dish photo)
+   - `cooksnap_master_5.webp`: Cooksnap Veteran (Silver) (Awarded upon sharing 5 dish photos)
+   - `cooksnap_master_15.webp`: Cooksnap Master (Gold) (Awarded upon sharing 15 dish photos)
+
 Badges are only added if they don't already exist in the user's badge collection.
 
 #### Example
