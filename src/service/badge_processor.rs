@@ -38,7 +38,7 @@ impl BadgeForgeProcessor {
         });
     }
 
-    async fn process_request(&self, request: LevelRequest) -> Result<(), String> {
+    pub async fn process_request(&self, request: LevelRequest) -> Result<(), String> {
         info!("Processing badge update for user: {}", request.user_id);
 
         let user_id = match ObjectId::parse_str(&request.user_id) {
@@ -58,7 +58,14 @@ impl BadgeForgeProcessor {
         let num_recipes = user_recipes.len();
         let user_num_likes: u32 = user_recipes.iter().map(|r| r.num_likes as u32).sum();
 
-        let new_user_level = calculate_level(num_recipes as u32, user_num_likes) as i32;
+        let recipe_ids: Vec<ObjectId> = user_recipes.iter().map(|r| r._id).collect();
+        let num_remixes = self
+            .db
+            .count_recipe_remixes_by_author(&user_id, &recipe_ids)
+            .await? as u32;
+
+        let new_user_level =
+            calculate_level(num_recipes as u32, user_num_likes, num_remixes) as i32;
 
         let mut updated_badges = user.badges.clone();
         assign_badges(&mut updated_badges, new_user_level, user_recipes);

@@ -7,14 +7,17 @@ The recipe application uses a straightforward level system that rewards users fo
 ## How Levels Are Calculated
 
 ```rust
-pub fn calculate_level(num_recipes: u32, num_likes: u32) -> u32 {
-    num_recipes + num_likes
+pub fn calculate_level(num_recipes: u32, num_likes: u32, num_remixes: u32) -> u32 {
+    num_recipes + num_likes + num_remixes
 }
 ```
 
 A user's level is determined by the sum of:
-- The total number of recipes they've created
+- The total number of recipes they've created (including variations/remixes)
 - The total number of likes they've received
+- The total number of community remixes of their recipes published by other cooks (creator recognition / karma)
+
+Self-remixing (a cook forking their own recipe) awards creation XP to the cook for the newly published variation, but does not award duplicate author recognition XP.
 
 This creates a balanced approach where users can progress by either creating more content or by creating high-quality content that receives community recognition.
 
