@@ -45,6 +45,8 @@ DB_NAME=badgeforge
 API_KEY=your_secure_key_here
 ```
 
+> **Security Note:** `API_KEY` is mandatory in all environments. Protected endpoints fail closed (`500 Internal Server Error`) if `API_KEY` is missing or empty, and compare the `X-API-Key` header in constant time (there is no fallback/default key).
+
 ### Using Rust
 
 ```bash

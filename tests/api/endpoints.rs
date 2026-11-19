@@ -8,7 +8,7 @@ mod endpoints_tests {
 
     fn get_test_api_key() -> String {
         dotenv::dotenv().ok();
-        std::env::var("API_KEY").unwrap_or_else(|_| "default_key".to_string())
+        std::env::var("API_KEY").expect("API_KEY must be set in test environment")
     }
 
     #[tokio::test]
@@ -36,6 +36,21 @@ mod endpoints_tests {
         let client = setup_test_client().await;
         let response = client
             .post("/award-top-recipe")
+            .json(&json!({
+                "category": "week",
+                "user_id": "507f1f77bcf86cd799439011"
+            }))
+            .await;
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_award_top_recipe_rejects_default_key() {
+        let client = setup_test_client().await;
+        let response = client
+            .post("/award-top-recipe")
+            .header("X-API-Key", "default_key")
             .json(&json!({
                 "category": "week",
                 "user_id": "507f1f77bcf86cd799439011"
