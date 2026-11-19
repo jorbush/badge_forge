@@ -149,6 +149,15 @@ impl Notifier for MockNotifier {
 
 pub async fn setup_test_client_with_db() -> (TestClient, Arc<MockDatabase>, Arc<MockNotifier>) {
     dotenv().ok();
+    if std::env::var("API_KEY")
+        .map(|v| v.trim().is_empty())
+        .unwrap_or(true)
+    {
+        // SAFETY: Only executed during test setup when API_KEY is not present in the environment.
+        unsafe {
+            std::env::set_var("API_KEY", "test_only_api_key_badge_forge");
+        }
+    }
     // Set up the badge update queue
     let (queue, _) = InMemoryQueue::new(100);
     let queue_arc = Arc::new(queue);

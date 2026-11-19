@@ -17,4 +17,6 @@ jobs:
         with:
           rust-version: stable
       - name: Run tests
+        env:
+          API_KEY: ci-test-api-key
         run: cargo test
